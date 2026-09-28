@@ -1,15 +1,12 @@
-﻿"use client";
-/* ============================================================
-   REMORA — Main Page
-   Assembles all sections in order
-   ============================================================ */
-import Navbar       from "../components/Navbar";
-import Hero         from "../components/Hero";
-import Industries   from "../components/Industries";
-import HowItWorks   from "../components/HowItWorks";
+import Navbar from "../components/Navbar";
+import Hero from "../components/Hero";
+import Industries from "../components/Industries";
+import HowItWorks from "../components/HowItWorks";
 import { Capabilities, Integrations, Process, CTA, Footer, FloatingWA } from "../components/Sections";
 
-export default function HomePage() {
+/* Server Component: no "use client" here.
+   The interactive sections are client components and load as such. */
+export default function Page() {
   return (
     <>
       <Navbar />
@@ -27,5 +24,3 @@ export default function HomePage() {
     </>
   );
 }
-
-

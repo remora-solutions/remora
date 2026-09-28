@@ -6,7 +6,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { C, E, S, waLink } from "../styles/tokens";
 
 /* ── WHATSAPP CONFIG — change number here ── */
-export const WA_NUMBER  = "919999999999";  // ← your number
+export const WA_NUMBER  = "919037099672";  // ← your number
 export const WA_DEFAULT = "Hi Remora! I'd like to understand how you can help my business.";
 
 /* ── useInView hook ── */

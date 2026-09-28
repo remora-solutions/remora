@@ -259,7 +259,7 @@ export function Integrations() {
           <p style={{ fontSize: 13, color: C.muted }}>
             Need a specific integration not listed here?
           </p>
-          <a href={`https://wa.me/919999999999?text=${encodeURIComponent("Hi Remora! I need a custom integration for my business.")}`}
+          <a href={`https://wa.me/919037099672?text=${encodeURIComponent("Hi Remora! I need a custom integration for my business.")}`}
             target="_blank" rel="noopener noreferrer"
             style={{ fontSize: 13, fontWeight: 700, color: C.blue, textDecoration: "none" }}>
             Ask us — we've built it before →
@@ -434,7 +434,7 @@ export function Footer() {
    ================================================================ */
 export function FloatingWA() {
   const [hov, setHov] = useState(false);
-  const WA_NUMBER = "919999999999";
+  const WA_NUMBER = "919037099672";
   const link = `https://wa.me/${WA_NUMBER}?text=${encodeURIComponent("Hi Remora! I'd like to learn how you can help my business.")}`;
 
   return (

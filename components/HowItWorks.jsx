@@ -1,15 +1,15 @@
 "use client";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { C, E } from "../styles/tokens";
 
 /* ============================================================
    REMORA — How it works
-   Live demo player: 5 workflows, auto-playing, tabbed.
-   - Time-driven (no scroll-jacking) → never blank on mobile
-   - Layout is reserved up-front → no jumping while it plays
-   - Desktop: auto-advances, pauses on hover
-   - Mobile: plays once per demo, "Next demo" button, no auto-jump
-   - Respects prefers-reduced-motion (shows finished state)
+   Scroll-driven demos: every step appears as you scroll.
+   - Works on desktop AND phones (no pinned panels, no clipping)
+   - Progress is measured from where each demo sits on screen,
+     so tall stacked layouts on mobile still play in full
+   - Layout height is reserved up-front → nothing jumps
+   - Sticky tab bar jumps between the 5 demos
    Only depends on C and E from ../styles/tokens.
    ============================================================ */
 
@@ -17,7 +17,6 @@ const EXPO   = (E && E.expo)   || "cubic-bezier(0.16,1,0.3,1)";
 const SPRING = (E && E.spring) || "cubic-bezier(0.34,1.56,0.64,1)";
 const SMOOTH = (E && E.smooth) || "cubic-bezier(0.4,0,0.2,1)";
 const SH = "0 1px 4px rgba(15,23,42,0.06)";
-const HOLD = 3200; // ms to rest on the finished state before auto-advancing (desktop)
 
 const clamp01 = (v) => Math.max(0, Math.min(1, v));
 const inr = (n) => {
@@ -29,33 +28,28 @@ const inr = (n) => {
 
 /* ── Styles: layout, keyframes, responsive rules ── */
 const CSS = `
+html,body{overflow-x:clip!important}
 .hw-wrap{max-width:1120px;margin:0 auto;padding:0 clamp(16px,4vw,40px)}
-.hw-tabs{position:relative;display:flex;gap:8px;overflow-x:auto;padding:4px 2px 10px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.hw-tabbar{position:sticky;top:68px;z-index:50;background:rgba(255,255,255,.94);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);border-bottom:1px solid #e2e8f0;padding:10px 0 8px;margin-bottom:6px}
+.hw-tabs{display:flex;gap:8px;overflow-x:auto;padding:2px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
 .hw-tabs::-webkit-scrollbar{display:none}
-.hw-tab{position:relative;flex:1 1 0;min-width:max-content;display:flex;align-items:center;justify-content:center;gap:8px;padding:13px 18px;border-radius:14px;border:1.5px solid #e2e8f0;background:#fff;cursor:pointer;font-family:inherit;font-size:13.5px;font-weight:700;color:#64748b;overflow:hidden;white-space:nowrap;transition:background .3s,border-color .3s,color .3s,transform .2s}
+.hw-tab{position:relative;flex:1 1 0;min-width:max-content;display:flex;align-items:center;justify-content:center;gap:8px;padding:11px 18px;border-radius:12px;border:1.5px solid #e2e8f0;background:#fff;cursor:pointer;font-family:inherit;font-size:13.5px;font-weight:700;color:#64748b;overflow:hidden;white-space:nowrap;transition:background .3s,border-color .3s,color .3s,transform .2s}
 .hw-tab:hover{transform:translateY(-1px)}
-.hw-tab:focus-visible,.hw-btn:focus-visible,.hw-pill:focus-visible{outline:2px solid #3b82f6;outline-offset:2px}
-.hw-stage{margin-top:14px;border:1.5px solid;border-radius:26px;padding:clamp(16px,3vw,34px);box-shadow:0 20px 60px rgba(15,23,42,.06);transition:border-color .5s,background .5s}
-.hw-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:clamp(16px,3vw,28px)}
-.hw-btn{width:38px;height:38px;border-radius:50%;border:1.5px solid #e2e8f0;background:#fff;color:#0f172a;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;transition:transform .2s,background .2s}
-.hw-btn:hover{background:#f1f5f9;transform:translateY(-1px)}
-.hw-scene{animation:hw-in .6s cubic-bezier(.16,1,.3,1) both}
-.hw-scene-head{text-align:center;margin-bottom:clamp(22px,4vw,40px)}
+.hw-tab:focus-visible{outline:2px solid #3b82f6;outline-offset:2px}
+.hw-stage{margin-top:clamp(20px,4vw,36px);border:1.5px solid;border-radius:26px;padding:clamp(18px,3.4vw,38px);box-shadow:0 20px 60px rgba(15,23,42,.06);transition:border-color .5s}
+.hw-scene-head{text-align:center;margin-bottom:clamp(22px,4vw,40px);transition:opacity .7s cubic-bezier(.16,1,.3,1),transform .7s cubic-bezier(.16,1,.3,1)}
 .hw-col{display:flex;flex-direction:column;gap:14px;min-width:0}
 .hw-g2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:24px;align-items:start}
 .hw-gv{display:grid;grid-template-columns:minmax(0,300px) minmax(0,1fr);gap:24px;align-items:start}
 .hw-gr{display:grid;grid-template-columns:minmax(0,290px) minmax(0,1fr);gap:24px;align-items:start}
 .hw-g-erp{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr);gap:32px;align-items:start}
 .hw-kpis{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
-.hw-foot{display:none;gap:10px;margin-top:22px}
-.hw-pill{flex:1;display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:13px 16px;border-radius:14px;border:1.5px solid #e2e8f0;background:#fff;color:#0f172a;font-family:inherit;font-size:13.5px;font-weight:700;cursor:pointer}
 .hw-dots{display:inline-flex;align-items:center;height:14px}
 .hw-dots span{width:6px;height:6px;margin:0 2px;border-radius:50%;background:#94a3b8;display:inline-block;animation:hw-dot 1s infinite ease-in-out}
 .hw-dots span:nth-child(2){animation-delay:.15s}
 .hw-dots span:nth-child(3){animation-delay:.3s}
 .hw-caret{display:inline-block;width:2px;height:1em;background:currentColor;margin-left:1px;vertical-align:-2px;animation:hw-blink 1s steps(1) infinite}
 .hw-pop{animation:hw-pop .5s cubic-bezier(.34,1.56,.64,1)}
-@keyframes hw-in{from{opacity:0;transform:translateY(18px) scale(.985)}to{opacity:1;transform:none}}
 @keyframes hw-ring{0%{transform:scale(1);opacity:.5}100%{transform:scale(2.6);opacity:0}}
 @keyframes hw-mic{0%{transform:scale(.9);opacity:.6}100%{transform:scale(1.3);opacity:0}}
 @keyframes hw-bar{from{transform:scaleY(.35)}to{transform:scaleY(1)}}
@@ -64,25 +58,13 @@ const CSS = `
 @keyframes hw-pop{0%{transform:scale(.85);opacity:.3}60%{transform:scale(1.08);opacity:1}100%{transform:scale(1)}}
 @media(max-width:820px){
   .hw-g2,.hw-gv,.hw-gr,.hw-g-erp{grid-template-columns:minmax(0,1fr);gap:16px}
-  .hw-foot{display:flex}
-  .hw-tab{padding:12px 15px;font-size:13px}
+  .hw-tab{padding:10px 15px;font-size:13px}
   .hw-stage{border-radius:20px}
 }
-@media(prefers-reduced-motion:reduce){.hw-scene,.hw-anim,.hw-pop,.hw-dots span,.hw-caret{animation:none!important}}
+@media(prefers-reduced-motion:reduce){.hw-anim,.hw-pop,.hw-dots span,.hw-caret{animation:none!important}}
 `;
 
 /* ── Small building blocks ── */
-const Ico = {
-  play:   <path d="M8 5v14l11-7z" fill="currentColor" />,
-  pause:  <path d="M6 5h4v14H6zM14 5h4v14h-4z" fill="currentColor" />,
-  replay: <path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z" fill="currentColor" />,
-  prev:   <path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />,
-  next:   <path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />,
-};
-function Icon({ name, size = 16 }) {
-  return <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true">{Ico[name]}</svg>;
-}
-
 function Label({ text, color }) {
   return (
     <div style={{
@@ -161,14 +143,18 @@ function Packet({ color, label, show }) {
   );
 }
 
-/* Types text based on progress p (deterministic, replayable). Space is reserved. */
-function Typed({ text, p, from, to }) {
-  const t = clamp01((p - from) / (to - from));
-  const n = Math.floor(text.length * t);
+/* Types itself once triggered (independent of scroll speed). Space is reserved. */
+function Typed({ text, active }) {
+  const [n, setN] = useState(0);
+  useEffect(() => {
+    if (!active || n >= text.length) return;
+    const id = setTimeout(() => setN((v) => Math.min(text.length, v + 2)), 22);
+    return () => clearTimeout(id);
+  }, [active, n, text.length]);
   return (
     <>
       {text.slice(0, n)}
-      {t > 0 && t < 1 && <span className="hw-caret" />}
+      {n > 0 && n < text.length && <span className="hw-caret" />}
       <span style={{ opacity: 0 }}>{text.slice(n)}</span>
     </>
   );
@@ -471,7 +457,7 @@ function SceneVoice({ p }) {
                 fontSize: 12.5, color: C.text, lineHeight: 1.85, fontStyle: "italic",
                 background: C.light, borderRadius: 10, padding: "12px 14px", margin: 0,
               }}>
-                <Typed text={TRANSCRIPT} p={p} from={0.28} to={0.50} />
+                <Typed text={TRANSCRIPT} active={p > 0.28} />
               </p>
             </div>
           </Card>
@@ -675,19 +661,19 @@ function SceneAutomation({ p }) {
    SCENE CONFIG
    ============================================================ */
 const SCENES = [
-  { id: "erp", icon: "📊", label: "ERP", color: C.red, dur: 9500,
+  { id: "erp", icon: "📊", label: "ERP", color: C.red,
     title: "Odoo ERP — orders, inventory, invoices on autopilot",
     sub: "From customer click to dispatched order — zero manual steps required." },
-  { id: "whatsapp", icon: "💬", label: "WhatsApp", color: C.green, dur: 10500,
+  { id: "whatsapp", icon: "💬", label: "WhatsApp", color: C.green,
     title: "WhatsApp becomes your order desk and CRM",
     sub: "Retailers and customers order on WhatsApp. Remora pushes it straight into Odoo." },
-  { id: "voice", icon: "🎤", label: "Voice AI", color: C.blue, dur: 13000,
+  { id: "voice", icon: "🎤", label: "Voice AI", color: C.blue,
     title: "Speak to update your CRM — no typing needed",
     sub: "Sales team talks after a call. Voice AI transcribes, extracts, and CRM updates itself." },
-  { id: "rag", icon: "🧠", label: "RAG", color: C.purple, dur: 12500,
+  { id: "rag", icon: "🧠", label: "RAG", color: C.purple,
     title: "Your documents become instant, accurate answers",
     sub: "Upload SOPs, pricing, catalogues. Your chatbot knows everything inside them — forever." },
-  { id: "automation", icon: "⚡", label: "Automation", color: C.yellow, dur: 11000,
+  { id: "automation", icon: "⚡", label: "Automation", color: C.yellow,
     title: "One trigger — the entire chain runs automatically",
     sub: "n8n + Odoo + AI agents, working 24/7. You run your business, Remora handles the rest." },
 ];
@@ -695,205 +681,120 @@ const SCENE_COMPONENTS = [SceneERP, SceneWhatsApp, SceneVoice, SceneRAG, SceneAu
 const N = SCENES.length;
 
 /* ============================================================
-   MAIN — the demo player
+   MAIN
+   Progress p (0→1) of each demo is measured from where its card
+   sits in the viewport: 0 as it enters from the bottom, 1 once
+   its bottom edge reaches ~72% of the screen height. Works for
+   any card height, so tall stacked layouts on phones play fully.
    ============================================================ */
 export default function HowItWorks() {
-  const [idx, setIdx] = useState(0);
-  const [p, setP] = useState(0);
-  const [playing, setPlaying] = useState(true);
-  const [inView, setInView] = useState(false);
-  const [hover, setHover] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
-  const [canHover, setCanHover] = useState(false);
-  const [reduced, setReduced] = useState(false);
-  const [run, setRun] = useState(0);
-
-  const tRef = useRef(0);
-  const sectionRef = useRef(null);
-  const stageRef = useRef(null);
+  const [ps, setPs] = useState([0, 0, 0, 0, 0]);
+  const [active, setActive] = useState(0);
+  const sceneRefs = useRef([]);
   const tabsRef = useRef(null);
   const tabRefs = useRef([]);
 
-  const scene = SCENES[idx];
-  const Scene = SCENE_COMPONENTS[idx];
-  const autoAdvance = !isMobile;
-  const hoverPause = hover && canHover;
-
-  /* environment: viewport size, hover capability, reduced motion */
   useEffect(() => {
-    const mq = window.matchMedia("(max-width: 820px)");
-    const hm = window.matchMedia("(hover: hover)");
-    const rm = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const upd = () => { setIsMobile(mq.matches); setCanHover(hm.matches); setReduced(rm.matches); };
-    upd();
-    [mq, hm, rm].forEach((m) => m.addEventListener?.("change", upd));
-    return () => [mq, hm, rm].forEach((m) => m.removeEventListener?.("change", upd));
-  }, []);
-
-  /* only play while the stage is on screen */
-  useEffect(() => {
-    const el = stageRef.current;
-    if (!el || typeof IntersectionObserver === "undefined") { setInView(true); return; }
-    const io = new IntersectionObserver(([en]) => setInView(en.isIntersecting), { threshold: 0.08 });
-    io.observe(el);
-    return () => io.disconnect();
-  }, []);
-
-  /* reduced motion → show the finished state */
-  useEffect(() => { if (reduced) setP(1); }, [reduced, idx]);
-
-  /* the clock */
-  useEffect(() => {
-    if (reduced || !playing || !inView || hoverPause) return;
-    const D = scene.dur;
-    const end = autoAdvance ? D + HOLD : D;
-    let raf;
-    let last = performance.now();
-    let lastPaint = 0;
-    const tick = (now) => {
-      tRef.current += now - last;
-      last = now;
-      const t = tRef.current;
-      if (t >= D) {
-        setP(1);
-      } else if (now - lastPaint > 30) {
-        lastPaint = now;
-        setP(t / D);
-      }
-      if (t >= end) {
-        if (autoAdvance) {
-          tRef.current = 0;
-          setP(0);
-          setIdx((i) => (i + 1) % N);
-        }
-        return;
-      }
-      raf = requestAnimationFrame(tick);
+    let raf = 0;
+    const calc = () => {
+      raf = 0;
+      const vh = window.innerHeight || 800;
+      let act = 0;
+      const next = SCENES.map((_, i) => {
+        const el = sceneRefs.current[i];
+        if (!el) return 0;
+        const r = el.getBoundingClientRect();
+        if (r.top <= vh * 0.45) act = i;
+        return clamp01((vh * 0.88 - r.top) / (vh * 0.16 + r.height));
+      });
+      setPs((prev) => (prev.some((v, i) => Math.abs(v - next[i]) > 0.004) ? next : prev));
+      setActive(act);
     };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [idx, run, playing, inView, hoverPause, reduced, autoAdvance, scene.dur]);
+    const onScroll = () => { if (!raf) raf = requestAnimationFrame(calc); };
+    calc();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, []);
 
-  /* keep the active tab centred (phones scroll the tab row) */
+  /* keep the active tab in view (phones scroll the tab row sideways) */
   useEffect(() => {
     const c = tabsRef.current;
-    const t = tabRefs.current[idx];
+    const t = tabRefs.current[active];
     if (c && t) c.scrollTo({ left: t.offsetLeft - (c.clientWidth - t.offsetWidth) / 2, behavior: "smooth" });
-  }, [idx]);
+  }, [active]);
 
-  const goTo = useCallback((i) => {
-    tRef.current = 0;
-    setP(0);
-    setIdx(i);
-    setPlaying(true);
-    setRun((r) => r + 1);
-  }, []);
-  const replay = () => { tRef.current = 0; setP(0); setPlaying(true); setRun((r) => r + 1); };
-  const next = () => goTo((idx + 1) % N);
-  const prev = () => goTo((idx - 1 + N) % N);
-  const nextFromFoot = () => {
-    goTo((idx + 1) % N);
-    sectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-  };
-
-  const finished = p >= 1 && !autoAdvance;
-  const toggle = () => { if (finished) replay(); else setPlaying((v) => !v); };
-  const live = playing && inView && !hoverPause && !finished && !reduced;
-  const status = finished || reduced ? "Complete" : live ? "Live demo" : "Paused";
-  const showPlayIcon = finished || !playing;
+  const goTo = (i) => sceneRefs.current[i]?.scrollIntoView({ behavior: "smooth", block: "start" });
 
   return (
-    <section id="how-it-works" ref={sectionRef} style={{
-      background: C.white, padding: "clamp(56px,9vw,110px) 0", scrollMarginTop: 72, position: "relative", overflow: "hidden",
-    }}>
+    <section id="how-it-works" style={{ background: C.white, padding: "clamp(56px,9vw,110px) 0 clamp(40px,6vw,80px)", scrollMarginTop: 72 }}>
       <style>{CSS}</style>
       <div className="hw-wrap">
         {/* Section heading */}
-        <div style={{ textAlign: "center", marginBottom: "clamp(24px,4vw,44px)" }}>
+        <div style={{ textAlign: "center", marginBottom: "clamp(24px,4vw,40px)" }}>
           <Label text="How it works" color={C.blue} />
           <h2 style={{
             fontSize: "clamp(26px,5vw,44px)", fontWeight: 900, color: C.dark, letterSpacing: "-1px",
             lineHeight: 1.15, maxWidth: 760, margin: "0 auto 12px",
           }}>See one backbone run the whole business — live.</h2>
           <p style={{ fontSize: "clamp(14px,1.8vw,17px)", color: C.gray, maxWidth: 600, margin: "0 auto", lineHeight: 1.7 }}>
-            Five real workflows playing out step by step. Tap any tab to explore.
+            Five real workflows. Keep scrolling — every step plays out as you go.
           </p>
         </div>
 
-        {/* Tabs */}
-        <div className="hw-tabs" ref={tabsRef} role="tablist" aria-label="Remora workflows">
-          {SCENES.map((s, i) => {
-            const active = idx === i;
-            return (
-              <button key={s.id} type="button" role="tab" aria-selected={active}
-                ref={(el) => { tabRefs.current[i] = el; }}
-                className="hw-tab" onClick={() => (active ? replay() : goTo(i))}
-                style={{
-                  color: active ? s.color : undefined,
-                  background: active ? s.color + "0f" : undefined,
-                  borderColor: active ? s.color : undefined,
-                }}>
-                <span style={{ fontSize: 16 }}>{s.icon}</span>{s.label}
-                <span style={{
-                  position: "absolute", left: 0, bottom: 0, height: 3, background: s.color,
-                  width: active ? `${p * 100}%` : "0%", transition: active ? "none" : "width .3s",
-                }} />
-              </button>
-            );
-          })}
+        {/* Sticky tab bar */}
+        <div className="hw-tabbar">
+          <div className="hw-tabs" ref={tabsRef} role="tablist" aria-label="Remora workflows">
+            {SCENES.map((s, i) => {
+              const on = active === i;
+              return (
+                <button key={s.id} type="button" role="tab" aria-selected={on}
+                  ref={(el) => { tabRefs.current[i] = el; }}
+                  className="hw-tab" onClick={() => goTo(i)}
+                  style={{
+                    color: on ? s.color : undefined,
+                    background: on ? s.color + "0f" : undefined,
+                    borderColor: on ? s.color : undefined,
+                  }}>
+                  <span style={{ fontSize: 16 }}>{s.icon}</span>{s.label}
+                  <span style={{
+                    position: "absolute", left: 0, bottom: 0, height: 3, background: s.color,
+                    width: on ? `${ps[i] * 100}%` : "0%", transition: on ? "none" : "width .3s",
+                  }} />
+                </button>
+              );
+            })}
+          </div>
         </div>
 
-        {/* Stage */}
-        <div ref={stageRef} className="hw-stage"
-          onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
-          style={{
-            borderColor: scene.color + "30",
-            background: `radial-gradient(ellipse at 50% 0%, ${scene.color}0d 0%, transparent 62%), ${C.white}`,
-          }}>
-          <div className="hw-bar">
-            <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-              <span style={{ fontSize: 13, fontWeight: 800, color: scene.color, letterSpacing: ".5px" }}>
-                0{idx + 1} <span style={{ color: C.muted, fontWeight: 600 }}>/ 0{N}</span>
-              </span>
-              <span style={{
-                display: "inline-flex", alignItems: "center", gap: 7, fontSize: 11, fontWeight: 700,
-                color: live ? scene.color : C.muted, background: (live ? scene.color : C.muted) + "12",
-                borderRadius: 99, padding: "4px 11px",
+        {/* The five demos */}
+        {SCENES.map((s, i) => {
+          const Scene = SCENE_COMPONENTS[i];
+          const p = ps[i];
+          const seen = p > 0.005;
+          return (
+            <div key={s.id} ref={(el) => { sceneRefs.current[i] = el; }} className="hw-stage"
+              style={{
+                scrollMarginTop: 150,
+                borderColor: s.color + "30",
+                background: `radial-gradient(ellipse at 50% 0%, ${s.color}0d 0%, transparent 62%), ${C.white}`,
               }}>
-                {live && <Pulse color={scene.color} size={7} />}{status}
-              </span>
+              <div className="hw-scene-head" style={{ opacity: seen ? 1 : 0, transform: seen ? "none" : "translateY(18px)" }}>
+                <Label text={`0${i + 1} · ${s.id}`} color={s.color} />
+                <h3 style={{
+                  fontSize: "clamp(20px,4.4vw,34px)", fontWeight: 900, color: C.dark, letterSpacing: "-0.5px",
+                  lineHeight: 1.2, maxWidth: 700, margin: "0 auto 10px",
+                }}>{s.title}</h3>
+                <p style={{ fontSize: "clamp(13px,1.6vw,15px)", color: C.gray, maxWidth: 560, margin: "0 auto", lineHeight: 1.7 }}>{s.sub}</p>
+              </div>
+              <Scene p={p} />
             </div>
-            <div style={{ display: "flex", gap: 8 }}>
-              <button type="button" className="hw-btn" aria-label="Previous demo" onClick={prev}><Icon name="prev" /></button>
-              <button type="button" className="hw-btn" aria-label={showPlayIcon ? "Play" : "Pause"} onClick={toggle}>
-                <Icon name={showPlayIcon ? "play" : "pause"} />
-              </button>
-              <button type="button" className="hw-btn" aria-label="Replay" onClick={replay}><Icon name="replay" /></button>
-              <button type="button" className="hw-btn" aria-label="Next demo" onClick={next}><Icon name="next" /></button>
-            </div>
-          </div>
-
-          <div className="hw-scene" key={idx}>
-            <div className="hw-scene-head">
-              <Label text={`0${idx + 1} · ${scene.id}`} color={scene.color} />
-              <h3 style={{
-                fontSize: "clamp(20px,4.4vw,34px)", fontWeight: 900, color: C.dark, letterSpacing: "-0.5px",
-                lineHeight: 1.2, maxWidth: 700, margin: "0 auto 10px",
-              }}>{scene.title}</h3>
-              <p style={{ fontSize: "clamp(13px,1.6vw,15px)", color: C.gray, maxWidth: 560, margin: "0 auto", lineHeight: 1.7 }}>{scene.sub}</p>
-            </div>
-            <Scene p={p} />
-          </div>
-
-          {/* phone-friendly footer controls */}
-          <div className="hw-foot">
-            <button type="button" className="hw-pill" onClick={replay}><Icon name="replay" size={15} /> Replay</button>
-            <button type="button" className="hw-pill" onClick={nextFromFoot}
-              style={{ background: scene.color, borderColor: scene.color, color: "#fff" }}>
-              {idx === N - 1 ? "Start again" : `Next: ${SCENES[(idx + 1) % N].label}`} <Icon name="next" size={15} />
-            </button>
-          </div>
-        </div>
+          );
+        })}
       </div>
     </section>
   );

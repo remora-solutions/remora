@@ -41,7 +41,12 @@ export const viewport = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
-      <body className={inter.className}>{children}</body>
+      <body className={inter.className}>
+        {/* Skip-to-content: invisible until a keyboard user tabs to it.
+            Styled in app/globals.css under "NEW: skip-to-content link". */}
+        <a href="#main" className="skip-link">Skip to content</a>
+        {children}
+      </body>
     </html>
   );
 }

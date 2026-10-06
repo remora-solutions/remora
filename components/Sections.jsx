@@ -1,7 +1,7 @@
 "use client";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { C, E, waLink } from "../styles/tokens";
-import { Reveal, Label, Card, WABtn, BrandBars, Pulse, Divider } from "./ui";
+import { Reveal, Label, Card, WABtn, BrandBars, Pulse, Divider, useInView } from "./ui";
 
 /* ================================================================
    CAPABILITIES
@@ -110,7 +110,6 @@ const BRAND = {
   meta: { hex: "#0467DF", d: "M6.915 4.03c-1.968 0-3.683 1.28-4.871 3.113C.704 9.208 0 11.883 0 14.449c0 .706.07 1.369.21 1.973a6.624 6.624 0 0 0 .265.86 5.297 5.297 0 0 0 .371.761c.696 1.159 1.818 1.927 3.593 1.927 1.497 0 2.633-.671 3.965-2.444.76-1.012 1.144-1.626 2.663-4.32l.756-1.339.186-.325c.061.1.121.196.183.3l2.152 3.595c.724 1.21 1.665 2.556 2.47 3.314 1.046.987 1.992 1.22 3.06 1.22 1.075 0 1.876-.355 2.455-.843a3.743 3.743 0 0 0 .81-.973c.542-.939.861-2.127.861-3.745 0-2.72-.681-5.357-2.084-7.45-1.282-1.912-2.957-2.93-4.716-2.93-1.047 0-2.088.467-3.053 1.308-.652.57-1.257 1.29-1.82 2.05-.69-.875-1.335-1.547-1.958-2.056-1.182-.966-2.315-1.303-3.454-1.303zm10.16 2.053c1.147 0 2.188.758 2.992 1.999 1.132 1.748 1.647 4.195 1.647 6.4 0 1.548-.368 2.9-1.839 2.9-.58 0-1.027-.23-1.664-1.004-.496-.601-1.343-1.878-2.832-4.358l-.617-1.028a44.908 44.908 0 0 0-1.255-1.98c.07-.109.141-.224.211-.327 1.12-1.667 2.118-2.602 3.358-2.602zm-10.201.553c1.265 0 2.058.791 2.675 1.446.307.327.737.871 1.234 1.579l-1.02 1.566c-.757 1.163-1.882 3.017-2.837 4.338-1.191 1.649-1.81 1.817-2.486 1.817-.524 0-1.038-.237-1.383-.794-.263-.426-.464-1.13-.464-2.046 0-2.221.63-4.535 1.66-6.088.454-.687.964-1.226 1.533-1.533a2.264 2.264 0 0 1 1.088-.285z" },
 };
 
-/* Generic icons for tools without a free official logo */
 const GLYPH = {
   db: {
     color: "#F5A623",
@@ -177,80 +176,156 @@ function BrandIcon({ id, size = 30 }) {
   );
 }
 
-const INTEGRATIONS = [
-  { name: "Odoo ERP",         icons: ["odoo"],              color: C.red,    desc: "Core ERP platform" },
-  { name: "WhatsApp",         icons: ["whatsapp"],          color: C.green,  desc: "Business messaging" },
-  { name: "Gmail",            icons: ["gmail"],             color: C.red,    desc: "Email integration" },
-  { name: "n8n",              icons: ["n8n"],               color: C.purple, desc: "Workflow automation" },
-  { name: "ChromaDB",         icons: ["db"],                color: C.blue,   desc: "Vector database" },
-  { name: "Razorpay",         icons: ["razorpay"],          color: C.blue,   desc: "Payments India" },
-  { name: "Telegram",         icons: ["telegram"],          color: C.blue,   desc: "Staff bots" },
-  { name: "Groq / LLaMA",     icons: ["chip", "meta"],      color: C.yellow, desc: "AI inference" },
-  { name: "FastAPI",          icons: ["fastapi"],           color: C.green,  desc: "API backend" },
-  { name: "LangGraph",        icons: ["langgraph"],         color: C.purple, desc: "Agent orchestration" },
-  { name: "Twilio",           icons: ["phone"],             color: C.red,    desc: "Voice & SMS" },
-  { name: "WooCommerce",      icons: ["woocommerce"],       color: C.yellow, desc: "eCommerce" },
-  { name: "Zapier / n8n",     icons: ["zapier", "n8n"],     color: C.gray,   desc: "Workflow bridges" },
-  { name: "Stripe / PayTabs", icons: ["stripe", "card"],    color: C.green,  desc: "Payments GCC" },
-  { name: "OpenAI / Claude",  icons: ["spark", "claude"],   color: C.purple, desc: "Language models" },
-  { name: "WhatsApp Cloud",   icons: ["whatsapp", "meta"],  color: C.green,  desc: "Meta Business API" },
+/* ================================================================
+   INTEGRATIONS — hub & spoke
+   Remora at the centre, your tools arranged in two rings around
+   it, connected by thin lines. Desktop labels each node; phones
+   show icons only on the diagram plus a compact legend below, so
+   nothing is lost to crowding.
+   Logos are the property of their owners and are shown only to
+   indicate compatibility ("works with").
+   ================================================================ */
+const RING_INNER = [
+  { name: "Odoo ERP",       icons: ["odoo"],      color: C.red,    desc: "Core ERP platform" },
+  { name: "WhatsApp",       icons: ["whatsapp"],  color: C.green,  desc: "Business messaging" },
+  { name: "Gmail",          icons: ["gmail"],     color: C.red,    desc: "Email integration" },
+  { name: "n8n",            icons: ["n8n"],       color: C.purple, desc: "Workflow automation" },
+  { name: "ChromaDB",       icons: ["db"],        color: C.blue,   desc: "Vector database" },
+  { name: "Razorpay",       icons: ["razorpay"],  color: C.blue,   desc: "Payments India" },
+  { name: "Telegram",       icons: ["telegram"],  color: C.blue,   desc: "Staff bots" },
+  { name: "Groq / LLaMA",   icons: ["chip", "meta"], color: C.yellow, desc: "AI inference" },
+];
+const RING_OUTER = [
+  { name: "FastAPI",          icons: ["fastapi"],         color: C.green,  desc: "API backend" },
+  { name: "LangGraph",        icons: ["langgraph"],       color: C.purple, desc: "Agent orchestration" },
+  { name: "Twilio",           icons: ["phone"],           color: C.red,    desc: "Voice & SMS" },
+  { name: "WooCommerce",      icons: ["woocommerce"],     color: C.yellow, desc: "eCommerce" },
+  { name: "Zapier / n8n",     icons: ["zapier", "n8n"],   color: C.gray,   desc: "Workflow bridges" },
+  { name: "Stripe / PayTabs", icons: ["stripe", "card"],  color: C.green,  desc: "Payments GCC" },
+  { name: "OpenAI / Claude",  icons: ["spark", "claude"], color: C.purple, desc: "Language models" },
+  { name: "WhatsApp Cloud",   icons: ["whatsapp", "meta"],color: C.green,  desc: "Meta Business API" },
 ];
 
-function IntegrationTile({ name, icons, color, desc }) {
-  const [hov, setHov] = useState(false);
-  const size = icons.length > 1 ? 26 : 32;
+const HUB_CSS = `
+.ihub-wrap{max-width:680px;margin:0 auto;position:relative;aspect-ratio:1/1}
+.ihub-lines{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+.ihub-line{stroke:var(--r-accent,#3B82C4);stroke-width:.35;opacity:.16;transition:opacity .3s,stroke-width .3s}
+.ihub-line.active{opacity:.55;stroke-width:.6}
+.ihub-center{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:6px;z-index:3}
+.ihub-center-badge{width:84px;height:84px;border-radius:50%;background:#fff;border:1.5px solid var(--r-border,#E2E8F0);box-shadow:0 8px 28px rgba(15,23,42,.1);display:flex;align-items:center;justify-content:center;gap:4px}
+.ihub-node{position:absolute;display:flex;flex-direction:column;align-items:center;gap:7px;transform:translate(-50%,-50%);cursor:default;z-index:2;opacity:0}
+.ihub-node.vis{animation:ihub-pop .55s cubic-bezier(.34,1.56,.64,1) forwards}
+.ihub-badge{display:flex;align-items:center;justify-content:center;gap:4px;background:#fff;border:1.5px solid var(--r-border,#E2E8F0);border-radius:50%;box-shadow:0 2px 10px rgba(15,23,42,.06);transition:transform .25s,box-shadow .25s,border-color .25s}
+.ihub-node:hover .ihub-badge{transform:scale(1.14);box-shadow:0 10px 26px rgba(15,23,42,.14)}
+.ihub-label{font-size:10.5px;font-weight:700;color:var(--r-dark,#0F172A);white-space:nowrap;text-align:center;opacity:.85}
+.ihub-legend{display:none}
+@keyframes ihub-pop{from{opacity:0;transform:translate(-50%,-50%) scale(.6)}to{opacity:1;transform:translate(-50%,-50%) scale(1)}}
+@media(max-width:720px){
+  .ihub-wrap{max-width:360px}
+  .ihub-label{display:none}
+  .ihub-badge{width:30px!important;height:30px!important}
+  .ihub-center-badge{width:62px;height:62px}
+  .ihub-legend{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:28px}
+}
+@media(prefers-reduced-motion:reduce){.ihub-node{animation:none!important;opacity:1}}
+`;
+
+function polar(cx, cy, r, deg) {
+  const rad = (deg - 90) * (Math.PI / 180);
+  return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
+}
+
+function HubNode({ item, x, y, size, iconSize, vis, delay, onHover }) {
   return (
     <div
-      onMouseEnter={() => setHov(true)}
-      onMouseLeave={() => setHov(false)}
-      style={{
-        display: "flex", flexDirection: "column", alignItems: "center",
-        gap: 12, padding: "22px 14px",
-        background: C.white, borderRadius: 18,
-        border: `1.5px solid ${hov ? color + "60" : C.border}`,
-        boxShadow: hov ? `0 8px 28px ${color}14` : "0 1px 4px rgba(15,23,42,0.04)",
-        transform: hov ? "translateY(-4px)" : "none",
-        transition: `all 0.25s ${E.smooth}`,
-        cursor: "default",
-      }}
+      className={`ihub-node${vis ? " vis" : ""}`}
+      style={{ left: `${x}%`, top: `${y}%`, animationDelay: `${delay}s` }}
+      onMouseEnter={() => onHover(true)}
+      onMouseLeave={() => onHover(false)}
     >
-      <div style={{
-        display: "flex", alignItems: "center", justifyContent: "center", gap: 10, height: 36,
-        transform: hov ? "scale(1.12)" : "scale(1)",
-        transition: `transform 0.3s ${E.spring}`,
-      }}>
-        {icons.map((id) => <BrandIcon key={id} id={id} size={size} />)}
+      <div className="ihub-badge" style={{ width: size, height: size }}>
+        {item.icons.map((id) => <BrandIcon key={id} id={id} size={iconSize} />)}
       </div>
-      <div style={{ textAlign: "center" }}>
-        <div style={{ fontSize: 12, fontWeight: 700, color: C.dark }}>{name}</div>
-        <div style={{ fontSize: 10, color: C.muted, marginTop: 3 }}>{desc}</div>
-      </div>
+      <span className="ihub-label">{item.name}</span>
     </div>
   );
 }
 
 export function Integrations() {
+  const wrapRef = useRef(null);
+  const vis = useInView(wrapRef, 0.2);
+  const [hoverIdx, setHoverIdx] = useState(null); // e.g. "inner-3" / "outer-7"
+
+  const ALL = [...RING_INNER, ...RING_OUTER];
+  const innerPos = RING_INNER.map((item, i) => {
+    const { x, y } = polar(50, 50, 29, (360 / RING_INNER.length) * i);
+    return { item, x, y, key: `inner-${i}` };
+  });
+  const outerPos = RING_OUTER.map((item, i) => {
+    const { x, y } = polar(50, 50, 47, 22.5 + (360 / RING_OUTER.length) * i);
+    return { item, x, y, key: `outer-${i}` };
+  });
+  const allPos = [...innerPos, ...outerPos];
+
   return (
     <section id="integrations" style={{ padding: "var(--section-py) clamp(20px,4vw,40px)", background: C.white }}>
+      <style>{HUB_CSS}</style>
       <div style={{ maxWidth: 1120, margin: "0 auto" }}>
-        <Reveal style={{ textAlign: "center", marginBottom: 64 }}>
+        <Reveal style={{ textAlign: "center", marginBottom: 56 }}>
           <Label text="Integrations" color={C.blue} />
           <h2 style={{
             fontSize: "clamp(24px,4vw,40px)", fontWeight: 900,
             color: C.dark, letterSpacing: "-0.6px", lineHeight: 1.2,
-            maxWidth: 520, margin: "0 auto 14px",
+            maxWidth: 560, margin: "0 auto 14px",
           }}>
-            Everything connected. Nothing siloed.
+            One backbone. Everything plugged into it.
           </h2>
           <p style={{ fontSize: "clamp(13px,1.5vw,15px)", color: C.gray, maxWidth: 440, margin: "0 auto", lineHeight: 1.8 }}>
-            Remora integrates your existing tools into one unified workflow. No rip-and-replace. No disruption.
+            Remora sits at the centre and connects your existing tools into one unified workflow. No rip-and-replace.
           </p>
         </Reveal>
 
         <Reveal delay={0.1}>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(min(150px, 100%), 1fr))", gap: 14 }}>
-            {INTEGRATIONS.map((item) => (
-              <IntegrationTile key={item.name} {...item} />
+          <div className="ihub-wrap" ref={wrapRef}>
+            <svg className="ihub-lines" viewBox="0 0 100 100" preserveAspectRatio="none">
+              {allPos.map(({ x, y, key }) => (
+                <line key={key} className={`ihub-line${hoverIdx === key ? " active" : ""}`}
+                  x1="50" y1="50" x2={x} y2={y} vectorEffect="non-scaling-stroke" />
+              ))}
+            </svg>
+
+            <div className="ihub-center">
+              <div className="ihub-center-badge"><BrandBars h={22} w={6} gap={3} /></div>
+              <span style={{ fontSize: 12, fontWeight: 800, color: C.dark }}>Remora</span>
+            </div>
+
+            {innerPos.map(({ item, x, y, key }, i) => (
+              <HubNode key={key} item={item} x={x} y={y} size={52} iconSize={22}
+                vis={vis} delay={i * 0.04} onHover={(h) => setHoverIdx(h ? key : null)} />
+            ))}
+            {outerPos.map(({ item, x, y, key }, i) => (
+              <HubNode key={key} item={item} x={x} y={y} size={46} iconSize={19}
+                vis={vis} delay={0.32 + i * 0.04} onHover={(h) => setHoverIdx(h ? key : null)} />
+            ))}
+          </div>
+
+          {/* Phone-only legend: the diagram above drops labels under 720px, so the
+              names live here instead — nothing is lost, just relocated. */}
+          <div className="ihub-legend">
+            {ALL.map((item) => (
+              <div key={item.name} style={{ display: "flex", alignItems: "center", gap: 9, minWidth: 0 }}>
+                <div style={{
+                  width: 26, height: 26, borderRadius: "50%", background: "#fff",
+                  border: `1.5px solid ${C.border}`, display: "flex", alignItems: "center",
+                  justifyContent: "center", gap: 2, flexShrink: 0,
+                }}>
+                  {item.icons.map((id) => <BrandIcon key={id} id={id} size={13} />)}
+                </div>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 11.5, fontWeight: 700, color: C.dark, lineHeight: 1.3 }}>{item.name}</div>
+                  <div style={{ fontSize: 10, color: C.muted, lineHeight: 1.3 }}>{item.desc}</div>
+                </div>
+              </div>
             ))}
           </div>
         </Reveal>
@@ -269,7 +344,6 @@ export function Integrations() {
     </section>
   );
 }
-
 /* ================================================================
    HOW WE WORK (process)
    ================================================================ */
@@ -434,7 +508,7 @@ export function Footer() {
    ================================================================ */
 export function FloatingWA() {
   const [hov, setHov] = useState(false);
-  const WA_NUMBER = "919037099672";
+  const WA_NUMBER = "919999999999";
   const link = `https://wa.me/${WA_NUMBER}?text=${encodeURIComponent("Hi Remora! I'd like to learn how you can help my business.")}`;
 
   return (

@@ -10,7 +10,8 @@ export default function Page() {
   return (
     <>
       <Navbar />
-      <main>
+      {/* id="main" is the skip-link's target, set in app/layout.jsx */}
+      <main id="main">
         <Hero />
         <Industries />
         <HowItWorks />

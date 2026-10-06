@@ -20,6 +20,12 @@
   --r-green:  #3A8C4E;
   --r-purple: #7C3AED;
 
+  /* NEW: one accent for every interactive element (buttons, links,
+     active nav, focus) — matches C.accent in styles/tokens.js */
+  --r-accent:      #3B82C4;
+  --r-accent-soft: rgba(59, 130, 196, 0.16);
+  --r-accent-dark: #2E6CA3;
+
   /* Neutrals */
   --r-dark:   #0F172A;
   --r-mid:    #1E293B;
@@ -29,6 +35,11 @@
   --r-border: #E2E8F0;
   --r-light:  #F8FAFC;
   --r-white:  #FFFFFF;
+
+  /* NEW: warm page background — matches C.bg in styles/tokens.js.
+     Cards stay --r-white on top of this; the page itself is no
+     longer stark white. */
+  --r-bg:     #FAFAFC;
 
   /* Type scale */
   --r-display: clamp(36px, 6vw, 72px);
@@ -69,7 +80,8 @@ html {
 
 body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  background: var(--r-white);
+  /* CHANGED: was var(--r-white) — soft background now, cards stay white on top */
+  background: var(--r-bg);
   color: var(--r-text);
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
@@ -171,14 +183,45 @@ body {
 ::-webkit-scrollbar-thumb { background: var(--r-border); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--r-muted); }
 
-/* ── Selection ── */
-::selection { background: var(--r-blue); color: white; }
+/* ── Selection ──
+   CHANGED: was solid blue + white text (reads a little dated).
+   A soft tint with dark text feels closer to Linear/Attio/Stripe. */
+::selection { background: var(--r-accent-soft); color: var(--r-dark); }
 
 /* ── Focus ring ── */
 *:focus-visible {
-  outline: 2px solid var(--r-blue);
+  outline: 2px solid var(--r-accent);
   outline-offset: 3px;
   border-radius: 4px;
+}
+
+/* ── NEW: tactile press feedback ──
+   Buttons and the WhatsApp links feel pressed, not just hovered. */
+button:active,
+a[href^="https://wa.me"]:active {
+  transform: scale(0.97);
+}
+
+/* ── NEW: skip-to-content link ──
+   Invisible until a keyboard user tabs to it. Add the matching
+   <a href="#main" className="skip-link">Skip to content</a> as the
+   very first element inside <body> in app/layout.jsx, and add
+   id="main" to the <main> tag in app/page.jsx. */
+.skip-link {
+  position: absolute;
+  top: -48px;
+  left: 16px;
+  z-index: 1000;
+  background: var(--r-dark);
+  color: #fff;
+  padding: 12px 18px;
+  border-radius: var(--r-chip);
+  font-size: 13px;
+  font-weight: 700;
+  transition: top 0.25s var(--ease-out-expo);
+}
+.skip-link:focus {
+  top: 16px;
 }
 
 /* ── Responsive grid helpers ── */
@@ -197,6 +240,18 @@ img { display: block; max-width: 100%; image-rendering: -webkit-optimize-contras
 /* ── Link reset ── */
 a { color: inherit; text-decoration: none; }
 button { font-family: inherit; cursor: pointer; border: none; background: none; }
+
+/* ── NEW: respect reduced-motion preference ──
+   Visitors with this OS/browser setting get instant state changes
+   instead of animated ones, site-wide — accessibility, not style. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
 
 
 /* ===== Mobile fixes ===== */

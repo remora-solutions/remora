@@ -395,6 +395,40 @@ export function Process() {
 }
 
 /* ================================================================
+   BRAND BEAMS — signature background motif
+   Four diagonal glows in the Remora brand colours, drifting slowly,
+   with a faint grain texture. Used sparingly — a couple of key
+   sections only — so the shape itself becomes recognisable, the
+   way a repeated motif builds brand recall.
+   ================================================================ */
+const BEAMS_CSS = `
+.r-beams{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+.r-beam{position:absolute;top:-30%;width:16%;height:160%;filter:blur(48px);opacity:.4;transform:rotate(16deg);animation:r-beam-drift 24s ease-in-out infinite;will-change:transform}
+.r-beam:nth-child(1){left:4%;background:linear-gradient(180deg,${C.red} 0%,transparent 75%);animation-delay:0s}
+.r-beam:nth-child(2){left:30%;background:linear-gradient(180deg,${C.yellow} 0%,transparent 75%);animation-delay:-6s}
+.r-beam:nth-child(3){left:56%;background:linear-gradient(180deg,${C.blue} 0%,transparent 75%);animation-delay:-12s}
+.r-beam:nth-child(4){left:80%;background:linear-gradient(180deg,${C.green} 0%,transparent 75%);animation-delay:-18s}
+.r-grain{position:absolute;inset:0;opacity:.05;mix-blend-mode:overlay;background-image:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120"><filter id="n"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" stitchTiles="stitch"/></filter><rect width="100%25" height="100%25" filter="url(%23n)"/></svg>')}
+@keyframes r-beam-drift{0%,100%{transform:rotate(16deg) translateY(0) translateX(0)}50%{transform:rotate(16deg) translateY(5%) translateX(-2%)}}
+@media(prefers-reduced-motion:reduce){.r-beam{animation:none!important}}
+`;
+
+/* opacity: how strong the beams read — pass .5-.7 on dark backgrounds,
+   .12-.18 on light backgrounds (the beams are the same markup either way). */
+function BrandBeams({ opacity = 0.5 }) {
+  return (
+    <div className="r-beams" style={{ opacity }} aria-hidden="true">
+      <style>{BEAMS_CSS}</style>
+      <div className="r-beam" />
+      <div className="r-beam" />
+      <div className="r-beam" />
+      <div className="r-beam" />
+      <div className="r-grain" />
+    </div>
+  );
+}
+
+/* ================================================================
    CTA SECTION
    ================================================================ */
 export function CTA() {
@@ -403,15 +437,8 @@ export function CTA() {
       padding: "var(--section-py) clamp(20px,4vw,40px)",
       background: C.dark, position: "relative", overflow: "hidden",
     }}>
-      {/* Ambient blobs on dark bg */}
-      {[[C.blue, "-5%", "0%"], [C.purple, "60%", "50%"], [C.green, "5%", "80%"]].map(([color, left, top], i) => (
-        <div key={i} style={{
-          position: "absolute", width: 400, height: 400, borderRadius: "50%",
-          background: `radial-gradient(circle, ${color}12 0%, transparent 70%)`,
-          left, top, pointerEvents: "none",
-          animation: `float-slow ${8 + i * 2}s ease-in-out ${i * 1}s infinite`,
-        }} />
-      ))}
+      {/* Signature brand-beams background — see BrandBeams above */}
+      <BrandBeams opacity={0.55} />
 
       <div style={{ maxWidth: 720, margin: "0 auto", textAlign: "center", position: "relative", zIndex: 2 }}>
         <Reveal>

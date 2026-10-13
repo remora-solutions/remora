@@ -1,5 +1,6 @@
 import Navbar from "../components/Navbar";
 import Hero from "../components/Hero";
+import VideoSection from "../components/VideoSection";
 import Industries from "../components/Industries";
 import HowItWorks from "../components/HowItWorks";
 import { Capabilities, Integrations, Process, CTA, Footer, FloatingWA } from "../components/Sections";
@@ -13,6 +14,7 @@ export default function Page() {
       {/* id="main" is the skip-link's target, set in app/layout.jsx */}
       <main id="main">
         <Hero />
+        <VideoSection />
         <Industries />
         <HowItWorks />
         <Capabilities />
